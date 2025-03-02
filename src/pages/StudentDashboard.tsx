@@ -10,6 +10,11 @@ import { Chip } from "@/components/ui/chip";
 import { useToast } from "@/components/ui/use-toast";
 import { School, ApprovalStatus, Batch } from "@/lib/types";
 
+interface SkillType {
+  id: string;
+  name: string;
+}
+
 interface StudentProfile {
   id: string;
   name: string;
@@ -20,7 +25,7 @@ interface StudentProfile {
   resume_url: string | null;
   status: ApprovalStatus;
   created_at: string;
-  skills: { id: string; name: string }[];
+  skills: SkillType[];
 }
 
 const StudentDashboard = () => {
@@ -50,7 +55,7 @@ const StudentDashboard = () => {
         .from('students')
         .select('*')
         .eq('user_id', user?.id)
-        .single();
+        .maybeSingle();
       
       if (studentError) {
         if (studentError.code === 'PGRST116') {
@@ -66,6 +71,16 @@ const StudentDashboard = () => {
         throw studentError;
       }
       
+      if (!studentData) {
+        toast({
+          title: "No profile found",
+          description: "Please complete your profile registration",
+          duration: 3000,
+        });
+        navigate("/registration");
+        return;
+      }
+      
       // Fetch student skills
       const { data: skillsData, error: skillsError } = await supabase
         .from('student_skills')
@@ -78,9 +93,17 @@ const StudentDashboard = () => {
       if (skillsError) throw skillsError;
       
       // Format the profile with skills
-      const formattedProfile = {
-        ...studentData,
-        skills: skillsData.map((item: any) => item.skills)
+      const formattedProfile: StudentProfile = {
+        id: studentData.id,
+        name: studentData.name,
+        batch: studentData.batch as Batch,
+        school: studentData.school as School,
+        years_of_experience: studentData.years_of_experience,
+        linkedin_url: studentData.linkedin_url,
+        resume_url: studentData.resume_url,
+        status: studentData.status as ApprovalStatus,
+        created_at: studentData.created_at,
+        skills: skillsData ? skillsData.map((item: any) => item.skills) : []
       };
       
       setProfile(formattedProfile);

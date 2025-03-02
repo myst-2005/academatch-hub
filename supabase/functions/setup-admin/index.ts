@@ -1,82 +1,66 @@
 
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.38.4";
+import { serve } from "https://deno.land/std@0.131.0/http/server.ts";
+import { createClient } from "@supabase/supabase-js";
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") || "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
   try {
-    const supabase = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
-    );
+    // Create a Supabase client with the service role key
+    const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
 
-    // First, check if admin user already exists
-    const { data: adminUsers, error: checkError } = await supabase
-      .from('admin_login')
-      .select('*')
-      .eq('username', 'admin');
+    // Run the setup SQL to create admin_login table
+    await supabase.rpc('create_admin_login_table');
 
-    if (checkError) {
-      // If the table doesn't exist, create it
-      await supabase.rpc('create_admin_login_table');
+    // Check if admin user exists
+    const { data: adminUser, error: adminUserError } = await supabase.auth.admin.getUserByEmail("admin@example.com");
+
+    if (adminUserError && adminUserError.message !== "User not found") {
+      throw adminUserError;
     }
 
-    if (!adminUsers || adminUsers.length === 0) {
-      // Create admin user in auth.users
-      const adminEmail = 'admin@haca.example.com';
-      const adminPassword = 'admin@1234';
-
-      // Create admin user in auth
-      const { data: authUser, error: authError } = await supabase.auth.admin.createUser({
-        email: adminEmail,
-        password: adminPassword,
+    // If admin doesn't exist, create it
+    if (!adminUser) {
+      const { data: user, error } = await supabase.auth.admin.createUser({
+        email: "admin@example.com",
+        password: "admin@1234",
         email_confirm: true,
-        app_metadata: { is_super_admin: true },
+        user_metadata: {
+          name: "Admin User"
+        },
+        app_metadata: {
+          is_super_admin: true
+        },
       });
 
-      if (authError) {
-        throw authError;
+      if (error) {
+        throw error;
       }
 
-      // Store admin credentials in admin_login table for reference
-      const { error: insertError } = await supabase
-        .from('admin_login')
-        .insert([
-          {
-            username: 'admin',
-            email: adminEmail,
-            user_id: authUser.user.id
-          }
-        ]);
+      // Insert admin details into admin_login table
+      const { error: adminLoginError } = await supabase
+        .from("admin_login")
+        .insert({
+          username: "admin",
+          email: "admin@example.com",
+          user_id: user.user.id
+        });
 
-      if (insertError) {
-        throw insertError;
+      if (adminLoginError) {
+        throw adminLoginError;
       }
-
-      return new Response(
-        JSON.stringify({ success: true, message: 'Admin user created' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
 
-    return new Response(
-      JSON.stringify({ success: true, message: 'Admin user already exists' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ success: true, message: "Admin setup completed successfully" }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" }
+    });
   } catch (error) {
-    console.error('Error:', error);
-    return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error("Setup error:", error);
+    return new Response(JSON.stringify({ success: false, error: error.message }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
   }
 });
