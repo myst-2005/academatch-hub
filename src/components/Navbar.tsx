@@ -1,27 +1,20 @@
 
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { getCurrentUser, logout } from "@/lib/mockData";
-import { User } from "@/lib/types";
+import { useAuth } from "@/contexts/AuthContext";
 import { Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/components/ui/use-toast";
 
 const Navbar = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const { user, signOut, isAdmin } = useAuth();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const location = useLocation();
   const { toast } = useToast();
   
-  useEffect(() => {
-    const user = getCurrentUser();
-    setCurrentUser(user);
-  }, [location.pathname]);
-  
-  const handleLogout = () => {
-    logout();
-    setCurrentUser(null);
+  const handleLogout = async () => {
+    await signOut();
     toast({
       title: "Logged out successfully",
       duration: 3000,
@@ -31,8 +24,8 @@ const Navbar = () => {
     setIsMenuOpen(false);
   };
   
-  const getInitials = (name: string) => {
-    return name.charAt(0).toUpperCase();
+  const getInitials = (email: string) => {
+    return email.charAt(0).toUpperCase();
   };
   
   // Close menu when changing routes
@@ -78,7 +71,19 @@ const Navbar = () => {
           >
             Student Registration
           </Link>
-          {currentUser?.isAdmin && (
+          
+          {user && !isAdmin && (
+            <Link 
+              to="/student-dashboard" 
+              className={`text-sm font-medium transition-colors hover:text-haca-600 ${
+                location.pathname === "/student-dashboard" ? "text-haca-600" : "text-gray-600"
+              }`}
+            >
+              Student Dashboard
+            </Link>
+          )}
+          
+          {isAdmin && (
             <Link 
               to="/admin" 
               className={`text-sm font-medium transition-colors hover:text-haca-600 ${
@@ -89,11 +94,11 @@ const Navbar = () => {
             </Link>
           )}
           
-          {currentUser ? (
+          {user ? (
             <div className="flex items-center space-x-3">
               <Avatar className="h-8 w-8 bg-haca-100">
                 <AvatarFallback className="text-haca-600">
-                  {getInitials(currentUser.username)}
+                  {getInitials(user.email || 'U')}
                 </AvatarFallback>
               </Avatar>
               <Button 
@@ -151,7 +156,19 @@ const Navbar = () => {
             >
               Student Registration
             </Link>
-            {currentUser?.isAdmin && (
+            
+            {user && !isAdmin && (
+              <Link 
+                to="/student-dashboard" 
+                className={`text-sm font-medium transition-colors hover:text-haca-600 ${
+                  location.pathname === "/student-dashboard" ? "text-haca-600" : "text-gray-600"
+                }`}
+              >
+                Student Dashboard
+              </Link>
+            )}
+            
+            {isAdmin && (
               <Link 
                 to="/admin" 
                 className={`text-sm font-medium transition-colors hover:text-haca-600 ${
@@ -162,7 +179,7 @@ const Navbar = () => {
               </Link>
             )}
             
-            {currentUser ? (
+            {user ? (
               <div className="pt-2 border-t border-gray-200">
                 <Button 
                   variant="ghost" 

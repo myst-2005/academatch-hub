@@ -9,7 +9,93 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      skills: {
+        Row: {
+          id: string
+          name: string
+        }
+        Insert: {
+          id?: string
+          name: string
+        }
+        Update: {
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      student_skills: {
+        Row: {
+          id: string
+          skill_id: string | null
+          student_id: string | null
+        }
+        Insert: {
+          id?: string
+          skill_id?: string | null
+          student_id?: string | null
+        }
+        Update: {
+          id?: string
+          skill_id?: string | null
+          student_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "student_skills_skill_id_fkey"
+            columns: ["skill_id"]
+            isOneToOne: false
+            referencedRelation: "skills"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "student_skills_student_id_fkey"
+            columns: ["student_id"]
+            isOneToOne: false
+            referencedRelation: "students"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      students: {
+        Row: {
+          batch: string
+          created_at: string
+          id: string
+          linkedin_url: string
+          name: string
+          resume_url: string | null
+          school: string
+          status: string
+          user_id: string | null
+          years_of_experience: number
+        }
+        Insert: {
+          batch: string
+          created_at?: string
+          id?: string
+          linkedin_url: string
+          name: string
+          resume_url?: string | null
+          school: string
+          status?: string
+          user_id?: string | null
+          years_of_experience?: number
+        }
+        Update: {
+          batch?: string
+          created_at?: string
+          id?: string
+          linkedin_url?: string
+          name?: string
+          resume_url?: string | null
+          school?: string
+          status?: string
+          user_id?: string | null
+          years_of_experience?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

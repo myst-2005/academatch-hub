@@ -31,6 +31,7 @@ export interface Skill {
 
 export interface Student {
   id: string;
+  user_id?: string;
   name: string;
   batch: Batch;
   school: School;

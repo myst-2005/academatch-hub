@@ -1,8 +1,8 @@
 
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Batch, School, Skill } from "@/lib/types";
-import { addStudent, SKILLS } from "@/lib/mockData";
+import { Batch, School } from "@/lib/types";
+import { supabase } from "@/integrations/supabase/client";
 import Navbar from "@/components/Navbar";
 import { 
   Select,
@@ -11,11 +11,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/use-toast";
+import { Textarea } from "@/components/ui/textarea";
 
 const StudentRegistration = () => {
   const navigate = useNavigate();
@@ -23,17 +23,20 @@ const StudentRegistration = () => {
   
   const [formData, setFormData] = useState({
     name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
     batch: "",
     school: "",
     yearsOfExperience: "0",
     linkedinUrl: "",
-    resumeUrl: ""
+    resumeUrl: "",
+    skills: ""
   });
   
-  const [selectedSkills, setSelectedSkills] = useState<Skill[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -41,22 +44,34 @@ const StudentRegistration = () => {
     }));
   };
   
-  const handleSkillToggle = (skill: Skill) => {
-    setSelectedSkills(prev => {
-      const exists = prev.some(s => s.id === skill.id);
-      return exists
-        ? prev.filter(s => s.id !== skill.id)
-        : [...prev, skill];
-    });
-  };
-  
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (selectedSkills.length === 0) {
+    // Validate form
+    if (formData.password !== formData.confirmPassword) {
       toast({
-        title: "Validation error",
-        description: "Please select at least one skill",
+        title: "Passwords don't match",
+        description: "Please make sure your passwords match",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    if (formData.password.length < 6) {
+      toast({
+        title: "Password too short",
+        description: "Password must be at least 6 characters long",
+        variant: "destructive",
+        duration: 3000,
+      });
+      return;
+    }
+    
+    if (!formData.skills.trim()) {
+      toast({
+        title: "Skills required",
+        description: "Please enter at least one skill",
         variant: "destructive",
         duration: 3000,
       });
@@ -65,43 +80,105 @@ const StudentRegistration = () => {
     
     setIsSubmitting(true);
     
-    // Simulate API call delay
-    setTimeout(() => {
-      try {
-        addStudent({
-          name: formData.name,
-          batch: formData.batch as Batch,
-          school: formData.school as School,
-          skills: selectedSkills,
-          yearsOfExperience: parseInt(formData.yearsOfExperience),
-          linkedinUrl: formData.linkedinUrl,
-          resumeUrl: formData.resumeUrl || undefined
-        });
-        
-        toast({
-          title: "Registration successful",
-          description: "Your profile has been submitted for admin approval",
-          duration: 5000,
-        });
-        
-        navigate("/");
-      } catch (error) {
-        toast({
-          title: "Registration failed",
-          description: "An error occurred while registering",
-          variant: "destructive",
-          duration: 3000,
-        });
-      } finally {
-        setIsSubmitting(false);
+    try {
+      // 1. Create user account
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+      });
+      
+      if (authError) throw authError;
+      
+      if (!authData.user) {
+        throw new Error("Failed to create user account");
       }
-    }, 1500);
+      
+      // 2. Process skills (comma-separated)
+      const skillNames = formData.skills
+        .split(',')
+        .map(skill => skill.trim())
+        .filter(skill => skill.length > 0);
+      
+      // 3. Create student profile
+      const { data: studentData, error: studentError } = await supabase
+        .from('students')
+        .insert({
+          user_id: authData.user.id,
+          name: formData.name,
+          batch: formData.batch,
+          school: formData.school,
+          years_of_experience: parseInt(formData.yearsOfExperience),
+          linkedin_url: formData.linkedinUrl,
+          resume_url: formData.resumeUrl || null,
+          status: 'pending'
+        })
+        .select()
+        .single();
+      
+      if (studentError) throw studentError;
+      
+      // 4. Add skills
+      for (const skillName of skillNames) {
+        // Try to find existing skill
+        let { data: existingSkill, error: skillQueryError } = await supabase
+          .from('skills')
+          .select('id')
+          .eq('name', skillName)
+          .single();
+        
+        let skillId;
+        
+        if (!existingSkill) {
+          // Create new skill if it doesn't exist
+          const { data: newSkill, error: skillInsertError } = await supabase
+            .from('skills')
+            .insert({ name: skillName })
+            .select()
+            .single();
+          
+          if (skillInsertError) throw skillInsertError;
+          skillId = newSkill.id;
+        } else {
+          skillId = existingSkill.id;
+        }
+        
+        // Associate skill with student
+        const { error: linkError } = await supabase
+          .from('student_skills')
+          .insert({
+            student_id: studentData.id,
+            skill_id: skillId
+          });
+        
+        if (linkError) throw linkError;
+      }
+      
+      toast({
+        title: "Registration successful",
+        description: "Your profile has been submitted for admin approval",
+        duration: 5000,
+      });
+      
+      // Login user and redirect to dashboard
+      await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
+      
+      navigate("/student-dashboard");
+    } catch (error: any) {
+      console.error("Registration error:", error);
+      
+      toast({
+        title: "Registration failed",
+        description: error.message || "An error occurred while registering",
+        variant: "destructive",
+        duration: 3000,
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
-  
-  // Group skills by category
-  const codingSkills = SKILLS.slice(0, 8);
-  const designSkills = SKILLS.slice(8, 12);
-  const marketingSkills = SKILLS.slice(12, 16);
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -127,6 +204,50 @@ const StudentRegistration = () => {
                   required
                   className="input-elegant"
                 />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="email">Email Address</Label>
+                <Input
+                  id="email"
+                  name="email"
+                  type="email"
+                  placeholder="Enter your email address"
+                  value={formData.email}
+                  onChange={handleInputChange}
+                  required
+                  className="input-elegant"
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <Input
+                    id="password"
+                    name="password"
+                    type="password"
+                    placeholder="Create a password"
+                    value={formData.password}
+                    onChange={handleInputChange}
+                    required
+                    className="input-elegant"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    name="confirmPassword"
+                    type="password"
+                    placeholder="Confirm your password"
+                    value={formData.confirmPassword}
+                    onChange={handleInputChange}
+                    required
+                    className="input-elegant"
+                  />
+                </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -185,73 +306,20 @@ const StudentRegistration = () => {
                 />
               </div>
               
-              <div className="space-y-4">
-                <Label>Skills</Label>
-                
-                <div className="space-y-4">
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">Coding Skills</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {codingSkills.map((skill) => (
-                        <div key={skill.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`skill-${skill.id}`}
-                            checked={selectedSkills.some(s => s.id === skill.id)}
-                            onCheckedChange={() => handleSkillToggle(skill)}
-                          />
-                          <label
-                            htmlFor={`skill-${skill.id}`}
-                            className="text-sm font-medium leading-none cursor-pointer"
-                          >
-                            {skill.name}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">Design Skills</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {designSkills.map((skill) => (
-                        <div key={skill.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`skill-${skill.id}`}
-                            checked={selectedSkills.some(s => s.id === skill.id)}
-                            onCheckedChange={() => handleSkillToggle(skill)}
-                          />
-                          <label
-                            htmlFor={`skill-${skill.id}`}
-                            className="text-sm font-medium leading-none cursor-pointer"
-                          >
-                            {skill.name}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  
-                  <div>
-                    <h4 className="text-sm font-medium text-gray-500 mb-2">Marketing Skills</h4>
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      {marketingSkills.map((skill) => (
-                        <div key={skill.id} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={`skill-${skill.id}`}
-                            checked={selectedSkills.some(s => s.id === skill.id)}
-                            onCheckedChange={() => handleSkillToggle(skill)}
-                          />
-                          <label
-                            htmlFor={`skill-${skill.id}`}
-                            className="text-sm font-medium leading-none cursor-pointer"
-                          >
-                            {skill.name}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
+              <div className="space-y-2">
+                <Label htmlFor="skills">Skills</Label>
+                <Textarea
+                  id="skills"
+                  name="skills"
+                  placeholder="Enter your skills, separated by commas (e.g., React, Flutter, AWS, Docker)"
+                  value={formData.skills}
+                  onChange={handleInputChange}
+                  required
+                  className="min-h-[100px] input-elegant"
+                />
+                <p className="text-xs text-gray-500">
+                  Separate each skill with a comma
+                </p>
               </div>
               
               <div className="space-y-2">
