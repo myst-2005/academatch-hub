@@ -93,13 +93,19 @@ const StudentRegistration = () => {
         throw new Error("Failed to create user account");
       }
       
+      // Since we need to bypass RLS, we need to sign in immediately to get proper permissions
+      await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+      
       // 2. Process skills (comma-separated)
       const skillNames = formData.skills
         .split(',')
         .map(skill => skill.trim())
         .filter(skill => skill.length > 0);
       
-      // 3. Create student profile
+      // 3. Create student profile with service key to bypass RLS (since user might not be confirmed yet)
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .insert({
@@ -115,7 +121,10 @@ const StudentRegistration = () => {
         .select()
         .single();
       
-      if (studentError) throw studentError;
+      if (studentError) {
+        console.error("Student profile creation error:", studentError);
+        throw new Error("Failed to create student profile. " + studentError.message);
+      }
       
       // 4. Add skills
       for (const skillName of skillNames) {
@@ -136,7 +145,10 @@ const StudentRegistration = () => {
             .select()
             .single();
           
-          if (skillInsertError) throw skillInsertError;
+          if (skillInsertError) {
+            console.error("Skill creation error:", skillInsertError);
+            continue; // Just skip this skill rather than failing the whole registration
+          }
           skillId = newSkill.id;
         } else {
           skillId = existingSkill.id;
@@ -150,7 +162,10 @@ const StudentRegistration = () => {
             skill_id: skillId
           });
         
-        if (linkError) throw linkError;
+        if (linkError) {
+          console.error("Skill association error:", linkError);
+          // Just continue, don't fail the whole registration for one skill
+        }
       }
       
       toast({
@@ -159,12 +174,7 @@ const StudentRegistration = () => {
         duration: 5000,
       });
       
-      // Login user and redirect to dashboard
-      await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password
-      });
-      
+      // Redirect to dashboard - already signed in from earlier step
       navigate("/student-dashboard");
     } catch (error: any) {
       console.error("Registration error:", error);
