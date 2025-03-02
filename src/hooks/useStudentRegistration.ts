@@ -88,31 +88,48 @@ export const useStudentRegistration = () => {
     setIsSubmitting(true);
     
     try {
+      console.log("Starting registration process");
+      
       // 1. Create user account
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
       });
       
-      if (authError) throw authError;
+      if (authError) {
+        console.error("Auth error:", authError);
+        throw authError;
+      }
       
       if (!authData.user) {
+        console.error("No user data returned");
         throw new Error("Failed to create user account");
       }
       
-      // Since we need to bypass RLS, we need to sign in immediately to get proper permissions
-      await supabase.auth.signInWithPassword({
+      console.log("User created successfully, user ID:", authData.user.id);
+      
+      // 2. Sign in immediately to get proper permissions
+      const { error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
       });
       
-      // 2. Process skills (comma-separated)
+      if (signInError) {
+        console.error("Sign in error:", signInError);
+        throw signInError;
+      }
+      
+      console.log("User signed in successfully");
+
+      // 3. Process skills (comma-separated)
       const skillNames = formData.skills
         .split(',')
         .map(skill => skill.trim())
         .filter(skill => skill.length > 0);
       
-      // 3. Create student profile with service key to bypass RLS (since user might not be confirmed yet)
+      console.log("Processing skills:", skillNames);
+      
+      // 4. Create student profile
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .insert({
@@ -133,18 +150,23 @@ export const useStudentRegistration = () => {
         throw new Error("Failed to create student profile. " + studentError.message);
       }
       
-      // 4. Add skills
+      console.log("Student profile created successfully:", studentData);
+      
+      // 5. Add skills
       for (const skillName of skillNames) {
+        console.log("Processing skill:", skillName);
+        
         // Try to find existing skill
         let { data: existingSkill, error: skillQueryError } = await supabase
           .from('skills')
           .select('id')
           .eq('name', skillName)
-          .single();
+          .maybeSingle();
         
         let skillId;
         
         if (!existingSkill) {
+          console.log("Skill doesn't exist, creating new skill:", skillName);
           // Create new skill if it doesn't exist
           const { data: newSkill, error: skillInsertError } = await supabase
             .from('skills')
@@ -156,9 +178,12 @@ export const useStudentRegistration = () => {
             console.error("Skill creation error:", skillInsertError);
             continue; // Just skip this skill rather than failing the whole registration
           }
+          
           skillId = newSkill.id;
+          console.log("New skill created with ID:", skillId);
         } else {
           skillId = existingSkill.id;
+          console.log("Using existing skill with ID:", skillId);
         }
         
         // Associate skill with student
@@ -172,6 +197,8 @@ export const useStudentRegistration = () => {
         if (linkError) {
           console.error("Skill association error:", linkError);
           // Just continue, don't fail the whole registration for one skill
+        } else {
+          console.log("Skill associated with student successfully");
         }
       }
       
@@ -180,6 +207,8 @@ export const useStudentRegistration = () => {
         description: "Your profile has been submitted for admin approval",
         duration: 5000,
       });
+      
+      console.log("Registration completed successfully, redirecting to dashboard");
       
       // Redirect to dashboard - already signed in from earlier step
       navigate("/student-dashboard");
