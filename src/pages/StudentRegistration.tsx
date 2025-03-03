@@ -7,6 +7,7 @@ import { EducationSection } from "@/components/student-registration/EducationSec
 import { ExperienceSection } from "@/components/student-registration/ExperienceSection";
 import { ProfileLinksSection } from "@/components/student-registration/ProfileLinksSection";
 import { SubmitSection } from "@/components/student-registration/SubmitSection";
+import { SkillAnalysisSection } from "@/components/student-registration/SkillAnalysisSection";
 
 const StudentRegistration = () => {
   const {
@@ -53,6 +54,10 @@ const StudentRegistration = () => {
                 skills={formData.skills}
                 onChange={handleInputChange}
               />
+              
+              {formData.skills.trim() && (
+                <SkillAnalysisSection skills={formData.skills} />
+              )}
               
               <ProfileLinksSection 
                 linkedinUrl={formData.linkedinUrl}

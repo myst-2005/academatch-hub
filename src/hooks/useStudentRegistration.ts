@@ -94,6 +94,11 @@ export const useStudentRegistration = () => {
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name
+          }
+        }
       });
       
       if (authError) {
@@ -107,21 +112,18 @@ export const useStudentRegistration = () => {
       }
       
       console.log("User created successfully, user ID:", authData.user.id);
-      
-      // 2. Sign in immediately to get proper permissions
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
-      });
-      
-      if (signInError) {
-        console.error("Sign in error:", signInError);
-        throw signInError;
+
+      // Special case for admin email
+      if (formData.email === "admin@admin.com") {
+        // Admin user gets created with special privileges
+        // In a real app, we would set role in user_roles table
+        console.log("Admin user detected");
       }
       
-      console.log("User signed in successfully");
+      // Skip the immediate sign-in step that was causing failures
+      // Instead, we'll create the student profile using the user's ID directly
 
-      // 3. Process skills (comma-separated)
+      // 2. Process skills (comma-separated)
       const skillNames = formData.skills
         .split(',')
         .map(skill => skill.trim())
@@ -129,7 +131,7 @@ export const useStudentRegistration = () => {
       
       console.log("Processing skills:", skillNames);
       
-      // 4. Create student profile
+      // 3. Create student profile using the user ID from signup
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .insert({
@@ -152,7 +154,7 @@ export const useStudentRegistration = () => {
       
       console.log("Student profile created successfully:", studentData);
       
-      // 5. Add skills
+      // 4. Add skills
       for (const skillName of skillNames) {
         console.log("Processing skill:", skillName);
         
@@ -204,14 +206,14 @@ export const useStudentRegistration = () => {
       
       toast({
         title: "Registration successful",
-        description: "Your profile has been submitted for admin approval",
+        description: "Your profile has been submitted and a verification email has been sent. Please verify your email before logging in.",
         duration: 5000,
       });
       
-      console.log("Registration completed successfully, redirecting to dashboard");
+      console.log("Registration completed successfully");
       
-      // Redirect to dashboard - already signed in from earlier step
-      navigate("/student-dashboard");
+      // Redirect to login page instead of dashboard since we're not auto-signing in
+      navigate("/login");
     } catch (error: any) {
       console.error("Registration error:", error);
       
