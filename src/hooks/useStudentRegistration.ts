@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
@@ -82,7 +81,6 @@ export const useStudentRegistration = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate form
     if (!validateForm()) return;
     
     setIsSubmitting(true);
@@ -90,17 +88,15 @@ export const useStudentRegistration = () => {
     try {
       console.log("Starting registration process");
       
-      // 1. Create user account - with autoconfirm
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
-            full_name: formData.name
+            full_name: formData.name,
+            is_super_admin: formData.email === "admin@admin.com"
           },
-          emailRedirectTo: window.location.origin + "/login",
-          // Automatically confirm the email for testing purposes
-          emailConfirm: true
+          emailRedirectTo: window.location.origin + "/login"
         }
       });
       
@@ -116,9 +112,7 @@ export const useStudentRegistration = () => {
       
       console.log("User created successfully, user ID:", authData.user.id);
 
-      // Special case for admin email
       if (formData.email === "admin@admin.com") {
-        // For admin user, we'll sign them in directly
         console.log("Admin user detected");
         
         const { error: adminSignInError } = await supabase.auth.signInWithPassword({
@@ -139,7 +133,6 @@ export const useStudentRegistration = () => {
         }
       }
       
-      // Directly sign in the regular user after signup
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password
@@ -147,12 +140,10 @@ export const useStudentRegistration = () => {
       
       if (signInError) {
         console.error("Sign-in error after registration:", signInError);
-        // Continue with profile creation even if sign-in fails
       } else {
         console.log("User signed in successfully after registration");
       }
 
-      // 2. Process skills (comma-separated)
       const skillNames = formData.skills
         .split(',')
         .map(skill => skill.trim())
@@ -160,7 +151,6 @@ export const useStudentRegistration = () => {
       
       console.log("Processing skills:", skillNames);
       
-      // 3. Create student profile using the user ID from signup
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .insert({
@@ -171,7 +161,7 @@ export const useStudentRegistration = () => {
           years_of_experience: parseInt(formData.yearsOfExperience),
           linkedin_url: formData.linkedinUrl,
           resume_url: formData.resumeUrl || null,
-          status: 'active' // Changed from 'pending' to 'active'
+          status: 'active'
         })
         .select()
         .single();
@@ -183,11 +173,9 @@ export const useStudentRegistration = () => {
       
       console.log("Student profile created successfully:", studentData);
       
-      // 4. Add skills
       for (const skillName of skillNames) {
         console.log("Processing skill:", skillName);
         
-        // Try to find existing skill
         let { data: existingSkill, error: skillQueryError } = await supabase
           .from('skills')
           .select('id')
@@ -198,7 +186,6 @@ export const useStudentRegistration = () => {
         
         if (!existingSkill) {
           console.log("Skill doesn't exist, creating new skill:", skillName);
-          // Create new skill if it doesn't exist
           const { data: newSkill, error: skillInsertError } = await supabase
             .from('skills')
             .insert({ name: skillName })
@@ -207,7 +194,7 @@ export const useStudentRegistration = () => {
           
           if (skillInsertError) {
             console.error("Skill creation error:", skillInsertError);
-            continue; // Just skip this skill rather than failing the whole registration
+            continue;
           }
           
           skillId = newSkill.id;
@@ -217,7 +204,6 @@ export const useStudentRegistration = () => {
           console.log("Using existing skill with ID:", skillId);
         }
         
-        // Associate skill with student
         const { error: linkError } = await supabase
           .from('student_skills')
           .insert({
@@ -227,7 +213,6 @@ export const useStudentRegistration = () => {
         
         if (linkError) {
           console.error("Skill association error:", linkError);
-          // Just continue, don't fail the whole registration for one skill
         } else {
           console.log("Skill associated with student successfully");
         }
@@ -241,7 +226,6 @@ export const useStudentRegistration = () => {
       
       console.log("Registration completed successfully");
       
-      // Redirect to student dashboard since we're already signed in
       navigate("/student-dashboard");
     } catch (error: any) {
       console.error("Registration error:", error);

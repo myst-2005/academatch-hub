@@ -78,9 +78,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     if (response.data.user) {
       // Check if admin
-      if (response.data.user.email === "admin@admin.com") {
-        setIsAdmin(true);
-      }
+      const isAdminUser = response.data.user.email === "admin@admin.com" || 
+                        response.data.user.app_metadata?.is_super_admin;
+      setIsAdmin(isAdminUser);
     }
     
     return {
@@ -95,7 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: {
         emailRedirectTo: window.location.origin + "/login",
-        emailConfirm: true // Auto-confirm for testing
+        data: {
+          is_super_admin: email === "admin@admin.com"
+        }
       }
     });
     

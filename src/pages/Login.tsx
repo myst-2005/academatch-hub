@@ -38,11 +38,14 @@ const Login = () => {
     setIsLoading(true);
     
     try {
-      // Admin login (special case)
-      if (formData.email === "admin" || formData.email === "admin@admin.com") {
+      // Admin login (special case) - accepting both "admin" and "admin@admin.com"
+      const adminEmail = formData.email === "admin" ? "admin@admin.com" : formData.email;
+      
+      // If it's admin login attempt
+      if (adminEmail === "admin@admin.com") {
         console.log("Attempting admin login");
         const { data: adminData, error: adminError } = await supabase.auth.signInWithPassword({
-          email: "admin@admin.com", 
+          email: adminEmail, 
           password: formData.password
         });
         
