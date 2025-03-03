@@ -95,8 +95,7 @@ export const useStudentRegistration = () => {
           data: {
             full_name: formData.name,
             is_super_admin: formData.email === "admin@admin.com"
-          },
-          emailRedirectTo: window.location.origin + "/login"
+          }
         }
       });
       
@@ -140,6 +139,7 @@ export const useStudentRegistration = () => {
       
       if (signInError) {
         console.error("Sign-in error after registration:", signInError);
+        throw signInError;
       } else {
         console.log("User signed in successfully after registration");
       }
