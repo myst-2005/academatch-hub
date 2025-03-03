@@ -90,14 +90,17 @@ export const useStudentRegistration = () => {
     try {
       console.log("Starting registration process");
       
-      // 1. Create user account
+      // 1. Create user account - with autoconfirm
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
             full_name: formData.name
-          }
+          },
+          emailRedirectTo: window.location.origin + "/login",
+          // Automatically confirm the email for testing purposes
+          emailConfirm: true
         }
       });
       
@@ -115,13 +118,39 @@ export const useStudentRegistration = () => {
 
       // Special case for admin email
       if (formData.email === "admin@admin.com") {
-        // Admin user gets created with special privileges
-        // In a real app, we would set role in user_roles table
+        // For admin user, we'll sign them in directly
         console.log("Admin user detected");
+        
+        const { error: adminSignInError } = await supabase.auth.signInWithPassword({
+          email: "admin@admin.com",
+          password: formData.password
+        });
+        
+        if (adminSignInError) {
+          console.error("Admin sign-in error:", adminSignInError);
+        } else {
+          toast({
+            title: "Admin account created and signed in",
+            description: "Welcome, admin!",
+            duration: 3000,
+          });
+          navigate("/admin-dashboard");
+          return;
+        }
       }
       
-      // Skip the immediate sign-in step that was causing failures
-      // Instead, we'll create the student profile using the user's ID directly
+      // Directly sign in the regular user after signup
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
+      
+      if (signInError) {
+        console.error("Sign-in error after registration:", signInError);
+        // Continue with profile creation even if sign-in fails
+      } else {
+        console.log("User signed in successfully after registration");
+      }
 
       // 2. Process skills (comma-separated)
       const skillNames = formData.skills
@@ -142,7 +171,7 @@ export const useStudentRegistration = () => {
           years_of_experience: parseInt(formData.yearsOfExperience),
           linkedin_url: formData.linkedinUrl,
           resume_url: formData.resumeUrl || null,
-          status: 'pending'
+          status: 'active' // Changed from 'pending' to 'active'
         })
         .select()
         .single();
@@ -206,14 +235,14 @@ export const useStudentRegistration = () => {
       
       toast({
         title: "Registration successful",
-        description: "Your profile has been submitted and a verification email has been sent. Please verify your email before logging in.",
+        description: "Your profile has been created successfully.",
         duration: 5000,
       });
       
       console.log("Registration completed successfully");
       
-      // Redirect to login page instead of dashboard since we're not auto-signing in
-      navigate("/login");
+      // Redirect to student dashboard since we're already signed in
+      navigate("/student-dashboard");
     } catch (error: any) {
       console.error("Registration error:", error);
       

@@ -32,9 +32,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(data.session?.user || null);
       
       if (data.session?.user) {
-        // Check if user is admin (currently using the super_admin flag)
-        const { data: userData } = await supabase.auth.getUser();
-        setIsAdmin(userData.user?.app_metadata?.is_super_admin || false);
+        // Check if user is admin (either by email or metadata)
+        const isAdminUser = data.session.user.email === "admin@admin.com" || 
+                         data.session.user.app_metadata?.is_super_admin;
+        setIsAdmin(isAdminUser);
       }
       
       setLoading(false);
@@ -49,8 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         if (session?.user) {
           // Check if user is admin
-          const { data } = await supabase.auth.getUser();
-          setIsAdmin(data.user?.app_metadata?.is_super_admin || false);
+          const isAdminUser = session.user.email === "admin@admin.com" ||
+                          session.user.app_metadata?.is_super_admin;
+          setIsAdmin(isAdminUser);
         } else {
           setIsAdmin(false);
         }
@@ -65,10 +67,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
+    console.log(`Attempting to sign in with email: ${email}`);
+    
     const response = await supabase.auth.signInWithPassword({
       email,
       password,
     });
+    
+    console.log("Sign in response:", response);
+    
+    if (response.data.user) {
+      // Check if admin
+      if (response.data.user.email === "admin@admin.com") {
+        setIsAdmin(true);
+      }
+    }
     
     return {
       data: response.data.user,
@@ -80,6 +93,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const response = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        emailRedirectTo: window.location.origin + "/login",
+        emailConfirm: true // Auto-confirm for testing
+      }
     });
     
     return {

@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -38,28 +39,38 @@ const Login = () => {
     
     try {
       // Admin login (special case)
-      if (formData.email === "admin" && formData.password === "admin@1234") {
-        // Since we don't have an admin_login table yet, we'll handle admin authentication differently
+      if (formData.email === "admin" || formData.email === "admin@admin.com") {
+        console.log("Attempting admin login");
         const { data: adminData, error: adminError } = await supabase.auth.signInWithPassword({
-          email: "admin@example.com", // Default admin email
+          email: "admin@admin.com", 
           password: formData.password
         });
         
-        if (adminError) throw adminError;
+        if (adminError) {
+          console.error("Admin login error:", adminError);
+          throw adminError;
+        }
+        
+        console.log("Admin login successful:", adminData);
         
         toast({
           title: "Logged in as admin",
           duration: 3000,
         });
         
-        navigate("/admin");
+        navigate("/admin-dashboard");
         return;
       }
       
       // Regular user login
       const { error } = await signIn(formData.email, formData.password);
       
-      if (error) throw error;
+      if (error) {
+        console.error("Login error:", error);
+        throw error;
+      }
+      
+      console.log("Login successful, checking user type");
       
       // Check if user is a student
       const { data: studentData, error: studentError } = await supabase
