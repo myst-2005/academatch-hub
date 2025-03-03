@@ -121,6 +121,7 @@ export const useStudentRegistration = () => {
         
         if (adminSignInError) {
           console.error("Admin sign-in error:", adminSignInError);
+          throw adminSignInError;
         } else {
           toast({
             title: "Admin account created and signed in",

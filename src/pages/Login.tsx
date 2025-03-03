@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { signIn, user } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   
   const [isLoading, setIsLoading] = useState(false);
@@ -20,10 +20,11 @@ const Login = () => {
   });
   
   // Redirect if already logged in
-  if (user) {
-    navigate("/");
-    return null;
-  }
+  useEffect(() => {
+    if (user) {
+      navigate("/");
+    }
+  }, [user, navigate]);
   
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -66,37 +67,42 @@ const Login = () => {
       }
       
       // Regular user login
-      const { error } = await signIn(formData.email, formData.password);
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
       
       if (error) {
         console.error("Login error:", error);
         throw error;
       }
       
-      console.log("Login successful, checking user type");
+      console.log("Login successful, user data:", data);
       
       // Check if user is a student
-      const { data: studentData, error: studentError } = await supabase
-        .from('students')
-        .select('id')
-        .eq('user_id', user?.id)
-        .maybeSingle();
-      
-      if (studentData) {
-        toast({
-          title: "Login successful",
-          duration: 3000,
-        });
+      if (data.user) {
+        const { data: studentData } = await supabase
+          .from('students')
+          .select('id')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
         
-        navigate("/student-dashboard");
-      } else {
-        toast({
-          title: "Login successful",
-          description: "Welcome back!",
-          duration: 3000,
-        });
-        
-        navigate("/");
+        if (studentData) {
+          toast({
+            title: "Login successful",
+            duration: 3000,
+          });
+          
+          navigate("/student-dashboard");
+        } else {
+          toast({
+            title: "Login successful",
+            description: "Welcome back!",
+            duration: 3000,
+          });
+          
+          navigate("/");
+        }
       }
     } catch (error: any) {
       console.error("Login error:", error);
