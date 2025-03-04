@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
@@ -88,6 +89,7 @@ export const useStudentRegistration = () => {
     try {
       console.log("Starting registration process");
       
+      // 1. First create the auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
@@ -111,6 +113,7 @@ export const useStudentRegistration = () => {
       
       console.log("User created successfully, user ID:", authData.user.id);
 
+      // 2. Handle admin user separately
       if (formData.email === "admin@admin.com") {
         console.log("Admin user detected");
         
@@ -133,6 +136,7 @@ export const useStudentRegistration = () => {
         }
       }
       
+      // 3. For regular users, sign in after account creation
       const { error: signInError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password
@@ -140,11 +144,24 @@ export const useStudentRegistration = () => {
       
       if (signInError) {
         console.error("Sign-in error after registration:", signInError);
+        
+        // If there's an email confirmation issue, inform the user
+        if (signInError.message.includes("Email not confirmed")) {
+          toast({
+            title: "Account created, but email confirmation required",
+            description: "Please check your email to confirm your account before logging in",
+            duration: 5000,
+          });
+          navigate("/login");
+          return;
+        }
+        
         throw signInError;
       } else {
         console.log("User signed in successfully after registration");
       }
 
+      // 4. Process user skills
       const skillNames = formData.skills
         .split(',')
         .map(skill => skill.trim())
@@ -152,6 +169,7 @@ export const useStudentRegistration = () => {
       
       console.log("Processing skills:", skillNames);
       
+      // 5. Create student profile with the authenticated user ID
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .insert({
@@ -162,7 +180,7 @@ export const useStudentRegistration = () => {
           years_of_experience: parseInt(formData.yearsOfExperience),
           linkedin_url: formData.linkedinUrl,
           resume_url: formData.resumeUrl || null,
-          status: 'active'
+          status: 'pending'
         })
         .select()
         .single();
@@ -174,10 +192,11 @@ export const useStudentRegistration = () => {
       
       console.log("Student profile created successfully:", studentData);
       
+      // 6. Process and associate skills with the student
       for (const skillName of skillNames) {
         console.log("Processing skill:", skillName);
         
-        let { data: existingSkill, error: skillQueryError } = await supabase
+        let { data: existingSkill } = await supabase
           .from('skills')
           .select('id')
           .eq('name', skillName)
@@ -221,7 +240,7 @@ export const useStudentRegistration = () => {
       
       toast({
         title: "Registration successful",
-        description: "Your profile has been created successfully.",
+        description: "Your profile has been created and is pending approval.",
         duration: 5000,
       });
       

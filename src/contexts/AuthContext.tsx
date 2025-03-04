@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
+import { useToast } from '@/components/ui/use-toast';
 
 interface AuthContextValue {
   user: User | null;
@@ -24,21 +25,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     // Check active session
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setUser(data.session?.user || null);
-      
-      if (data.session?.user) {
-        // Check if user is admin (either by email or metadata)
-        const isAdminUser = data.session.user.email === "admin@admin.com" || 
-                         data.session.user.app_metadata?.is_super_admin;
-        setIsAdmin(isAdminUser);
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error("Session error:", error);
+          return;
+        }
+        
+        setUser(data.session?.user || null);
+        
+        if (data.session?.user) {
+          // Check if user is admin (either by email or metadata)
+          const isAdminUser = data.session.user.email === "admin@admin.com" || 
+                           data.session.user.app_metadata?.is_super_admin;
+          setIsAdmin(isAdminUser);
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+      } finally {
+        setLoading(false);
       }
-      
-      setLoading(false);
     };
 
     checkSession();
@@ -46,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.email);
         setUser(session?.user || null);
         
         if (session?.user) {
@@ -76,11 +89,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     console.log("Sign in response:", response);
     
-    if (response.data.user) {
+    if (response.error) {
+      toast({
+        title: "Login failed",
+        description: response.error.message,
+        variant: "destructive",
+      });
+    } else if (response.data.user) {
       // Check if admin
       const isAdminUser = response.data.user.email === "admin@admin.com" || 
                         response.data.user.app_metadata?.is_super_admin;
       setIsAdmin(isAdminUser);
+      
+      toast({
+        title: "Login successful",
+        description: "Welcome back!",
+      });
     }
     
     return {
@@ -101,6 +125,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     });
     
+    if (response.error) {
+      toast({
+        title: "Registration failed",
+        description: response.error.message,
+        variant: "destructive",
+      });
+    } else if (response.data.user) {
+      toast({
+        title: "Registration successful",
+        description: "Please check your email to confirm your account",
+      });
+    }
+    
     return {
       data: response.data.user,
       error: response.error,
@@ -111,6 +148,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     setIsAdmin(false);
+    toast({
+      title: "Logged out",
+      description: "You have been logged out successfully",
+    });
   };
 
   const value = {

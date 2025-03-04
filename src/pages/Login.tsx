@@ -107,9 +107,20 @@ const Login = () => {
     } catch (error: any) {
       console.error("Login error:", error);
       
+      let errorMessage = "Invalid credentials";
+      
+      // Provide more specific error messages for common errors
+      if (error.message.includes("Invalid login credentials")) {
+        errorMessage = "Invalid email or password";
+      } else if (error.message.includes("Email not confirmed")) {
+        errorMessage = "Please verify your email before logging in";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Login failed",
-        description: error.message || "Invalid credentials",
+        description: errorMessage,
         variant: "destructive",
         duration: 3000,
       });
