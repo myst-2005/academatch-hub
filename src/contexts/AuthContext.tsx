@@ -38,13 +38,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         
-        setUser(data.session?.user || null);
-        
         if (data.session?.user) {
-          // Check if user is admin (either by email or metadata)
+          setUser(data.session.user);
+          
+          // Check if user is admin
           const isAdminUser = data.session.user.email === "admin@admin.com" || 
-                           data.session.user.app_metadata?.is_super_admin;
+                          data.session.user.app_metadata?.is_super_admin;
           setIsAdmin(isAdminUser);
+          
+          console.log("Session found for user:", data.session.user.email);
+        } else {
+          setUser(null);
+          setIsAdmin(false);
+          console.log("No active session found");
         }
       } catch (error) {
         console.error("Error checking session:", error);
@@ -59,14 +65,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state changed:", event, session?.user?.email);
-        setUser(session?.user || null);
         
         if (session?.user) {
+          setUser(session.user);
+          
           // Check if user is admin
           const isAdminUser = session.user.email === "admin@admin.com" ||
                           session.user.app_metadata?.is_super_admin;
           setIsAdmin(isAdminUser);
         } else {
+          setUser(null);
           setIsAdmin(false);
         }
         
@@ -82,76 +90,94 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signIn = async (email: string, password: string) => {
     console.log(`Attempting to sign in with email: ${email}`);
     
-    const response = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    
-    console.log("Sign in response:", response);
-    
-    if (response.error) {
-      toast({
-        title: "Login failed",
-        description: response.error.message,
-        variant: "destructive",
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-    } else if (response.data.user) {
-      // Check if admin
-      const isAdminUser = response.data.user.email === "admin@admin.com" || 
-                        response.data.user.app_metadata?.is_super_admin;
-      setIsAdmin(isAdminUser);
       
-      toast({
-        title: "Login successful",
-        description: "Welcome back!",
-      });
+      console.log("Sign in response:", data, error);
+      
+      if (error) {
+        console.error("Sign in error:", error);
+        return { error, data: null };
+      }
+      
+      if (data.user) {
+        // Check if admin
+        const isAdminUser = data.user.email === "admin@admin.com" || 
+                          data.user.app_metadata?.is_super_admin;
+        setIsAdmin(isAdminUser);
+        
+        toast({
+          title: "Login successful",
+          description: "Welcome back!",
+        });
+        
+        return { data: data.user, error: null };
+      }
+      
+      return { data: null, error: new Error("No user data returned") };
+    } catch (error) {
+      console.error("Unexpected error during sign in:", error);
+      return { error, data: null };
     }
-    
-    return {
-      data: response.data.user,
-      error: response.error,
-    };
   };
 
   const signUp = async (email: string, password: string) => {
-    const response = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin + "/login",
-        data: {
-          is_super_admin: email === "admin@admin.com"
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: window.location.origin + "/login",
+          data: {
+            is_super_admin: email === "admin@admin.com"
+          }
         }
+      });
+      
+      if (error) {
+        toast({
+          title: "Registration failed",
+          description: error.message,
+          variant: "destructive",
+        });
+        return { error, data: null };
       }
-    });
-    
-    if (response.error) {
-      toast({
-        title: "Registration failed",
-        description: response.error.message,
-        variant: "destructive",
-      });
-    } else if (response.data.user) {
-      toast({
-        title: "Registration successful",
-        description: "Please check your email to confirm your account",
-      });
+      
+      if (data.user) {
+        toast({
+          title: "Registration successful",
+          description: "Please check your email to confirm your account",
+        });
+        return { data: data.user, error: null };
+      }
+      
+      return { data: null, error: new Error("No user data returned") };
+    } catch (error) {
+      console.error("Unexpected error during sign up:", error);
+      return { error, data: null };
     }
-    
-    return {
-      data: response.data.user,
-      error: response.error,
-    };
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setIsAdmin(false);
-    toast({
-      title: "Logged out",
-      description: "You have been logged out successfully",
-    });
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setIsAdmin(false);
+      toast({
+        title: "Logged out",
+        description: "You have been logged out successfully",
+      });
+    } catch (error) {
+      console.error("Sign out error:", error);
+      toast({
+        title: "Error",
+        description: "Failed to log out. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const value = {

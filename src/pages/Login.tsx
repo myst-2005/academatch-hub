@@ -10,7 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, signIn } = useAuth();
   const { toast } = useToast();
   
   const [isLoading, setIsLoading] = useState(false);
@@ -39,88 +39,78 @@ const Login = () => {
     setIsLoading(true);
     
     try {
+      console.log(`Attempting to sign in with email: ${formData.email}`);
+      
       // Admin login (special case) - accepting both "admin" and "admin@admin.com"
-      const adminEmail = formData.email === "admin" ? "admin@admin.com" : formData.email;
+      const isAdminLogin = formData.email === "admin" || formData.email === "admin@admin.com";
+      const adminEmail = isAdminLogin ? "admin@admin.com" : formData.email;
       
-      // If it's admin login attempt
-      if (adminEmail === "admin@admin.com") {
-        console.log("Attempting admin login");
-        const { data: adminData, error: adminError } = await supabase.auth.signInWithPassword({
-          email: adminEmail, 
-          password: formData.password
-        });
-        
-        if (adminError) {
-          console.error("Admin login error:", adminError);
-          throw adminError;
-        }
-        
-        console.log("Admin login successful:", adminData);
-        
-        toast({
-          title: "Logged in as admin",
-          duration: 3000,
-        });
-        
-        navigate("/admin-dashboard");
-        return;
-      }
-      
-      // Regular user login
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password
-      });
+      // Use the AuthContext signIn method
+      const { error, data } = await signIn(isAdminLogin ? adminEmail : formData.email, formData.password);
       
       if (error) {
         console.error("Login error:", error);
-        throw error;
+        
+        let errorMessage = "Invalid credentials";
+        
+        // Provide more specific error messages for common errors
+        if (error.message.includes("Invalid login credentials")) {
+          errorMessage = "Invalid email or password";
+        } else if (error.message.includes("Email not confirmed")) {
+          errorMessage = "Please verify your email before logging in";
+        } else if (error.message) {
+          errorMessage = error.message;
+        }
+        
+        toast({
+          title: "Login failed",
+          description: errorMessage,
+          variant: "destructive",
+          duration: 3000,
+        });
+        return;
       }
       
       console.log("Login successful, user data:", data);
       
-      // Check if user is a student
-      if (data.user) {
-        const { data: studentData } = await supabase
-          .from('students')
-          .select('id')
-          .eq('user_id', data.user.id)
-          .maybeSingle();
-        
-        if (studentData) {
-          toast({
-            title: "Login successful",
-            duration: 3000,
-          });
+      // Handle routing based on user type
+      if (isAdminLogin) {
+        toast({
+          title: "Logged in as admin",
+          duration: 3000,
+        });
+        navigate("/admin-dashboard");
+      } else {
+        // Check if user is a student
+        if (data) {
+          const { data: studentData } = await supabase
+            .from('students')
+            .select('id')
+            .eq('user_id', data.id)
+            .maybeSingle();
           
-          navigate("/student-dashboard");
-        } else {
-          toast({
-            title: "Login successful",
-            description: "Welcome back!",
-            duration: 3000,
-          });
-          
-          navigate("/");
+          if (studentData) {
+            toast({
+              title: "Login successful",
+              duration: 3000,
+            });
+            navigate("/student-dashboard");
+          } else {
+            toast({
+              title: "Login successful",
+              description: "Welcome back!",
+              duration: 3000,
+            });
+            navigate("/");
+          }
         }
       }
     } catch (error: any) {
       console.error("Login error:", error);
       
-      let errorMessage = "Invalid credentials";
-      
-      // Provide more specific error messages for common errors
-      if (error.message.includes("Invalid login credentials")) {
-        errorMessage = "Invalid email or password";
-      } else if (error.message.includes("Email not confirmed")) {
-        errorMessage = "Please verify your email before logging in";
-      } else if (error.message) {
-        errorMessage = error.message;
-      }
-      
       toast({
         title: "Login failed",
-        description: errorMessage,
+        description: error.message || "An unexpected error occurred",
         variant: "destructive",
         duration: 3000,
       });

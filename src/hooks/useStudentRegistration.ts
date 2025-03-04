@@ -89,14 +89,13 @@ export const useStudentRegistration = () => {
     try {
       console.log("Starting registration process");
       
-      // 1. First create the auth user
+      // 1. Create the auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
-            full_name: formData.name,
-            is_super_admin: formData.email === "admin@admin.com"
+            full_name: formData.name
           }
         }
       });
@@ -113,55 +112,7 @@ export const useStudentRegistration = () => {
       
       console.log("User created successfully, user ID:", authData.user.id);
 
-      // 2. Handle admin user separately
-      if (formData.email === "admin@admin.com") {
-        console.log("Admin user detected");
-        
-        const { error: adminSignInError } = await supabase.auth.signInWithPassword({
-          email: "admin@admin.com",
-          password: formData.password
-        });
-        
-        if (adminSignInError) {
-          console.error("Admin sign-in error:", adminSignInError);
-          throw adminSignInError;
-        } else {
-          toast({
-            title: "Admin account created and signed in",
-            description: "Welcome, admin!",
-            duration: 3000,
-          });
-          navigate("/admin-dashboard");
-          return;
-        }
-      }
-      
-      // 3. For regular users, sign in after account creation
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password
-      });
-      
-      if (signInError) {
-        console.error("Sign-in error after registration:", signInError);
-        
-        // If there's an email confirmation issue, inform the user
-        if (signInError.message.includes("Email not confirmed")) {
-          toast({
-            title: "Account created, but email confirmation required",
-            description: "Please check your email to confirm your account before logging in",
-            duration: 5000,
-          });
-          navigate("/login");
-          return;
-        }
-        
-        throw signInError;
-      } else {
-        console.log("User signed in successfully after registration");
-      }
-
-      // 4. Process user skills
+      // 2. Process user skills
       const skillNames = formData.skills
         .split(',')
         .map(skill => skill.trim())
@@ -169,7 +120,7 @@ export const useStudentRegistration = () => {
       
       console.log("Processing skills:", skillNames);
       
-      // 5. Create student profile with the authenticated user ID
+      // 3. Create student profile with the authenticated user ID
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .insert({
@@ -192,7 +143,7 @@ export const useStudentRegistration = () => {
       
       console.log("Student profile created successfully:", studentData);
       
-      // 6. Process and associate skills with the student
+      // 4. Process and associate skills with the student
       for (const skillName of skillNames) {
         console.log("Processing skill:", skillName);
         
@@ -238,23 +189,35 @@ export const useStudentRegistration = () => {
         }
       }
       
+      // Important: No automatic sign-in after registration
+      // Instead, redirect to login page with success message
       toast({
         title: "Registration successful",
-        description: "Your profile has been created and is pending approval.",
-        duration: 5000,
+        description: "Your profile has been created and is pending approval. Please check your email to verify your account, then log in.",
+        duration: 8000,
       });
       
       console.log("Registration completed successfully");
+      navigate("/login");
       
-      navigate("/student-dashboard");
     } catch (error: any) {
       console.error("Registration error:", error);
       
+      let errorMessage = "An error occurred while registering";
+      
+      if (error.message) {
+        if (error.message.includes("User already registered")) {
+          errorMessage = "This email is already registered. Please login instead.";
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
       toast({
         title: "Registration failed",
-        description: error.message || "An error occurred while registering",
+        description: errorMessage,
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setIsSubmitting(false);
