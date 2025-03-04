@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User } from '@supabase/supabase-js';
@@ -28,7 +27,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check active session
     const checkSession = async () => {
       try {
         const { data, error } = await supabase.auth.getSession();
@@ -41,7 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.session?.user) {
           setUser(data.session.user);
           
-          // Check if user is admin
           const isAdminUser = data.session.user.email === "admin@admin.com" || 
                           data.session.user.app_metadata?.is_super_admin;
           setIsAdmin(isAdminUser);
@@ -61,7 +58,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     checkSession();
 
-    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log("Auth state changed:", event, session?.user?.email);
@@ -69,7 +65,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           setUser(session.user);
           
-          // Check if user is admin
           const isAdminUser = session.user.email === "admin@admin.com" ||
                           session.user.app_metadata?.is_super_admin;
           setIsAdmin(isAdminUser);
@@ -104,7 +99,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       if (data.user) {
-        // Check if admin
         const isAdminUser = data.user.email === "admin@admin.com" || 
                           data.user.app_metadata?.is_super_admin;
         setIsAdmin(isAdminUser);
@@ -126,12 +120,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     try {
-      // Modified to skip email verification
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          // Skip email verification by not setting emailRedirectTo
+          emailRedirectTo: undefined,
           data: {
             is_super_admin: email === "admin@admin.com"
           }
@@ -148,19 +141,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       if (data.user) {
-        // Auto confirm the user (might not work with anon key)
-        try {
-          await supabase.auth.admin.updateUserById(
-            data.user.id,
-            { email_confirm: true }
-          );
-        } catch (confirmError) {
-          console.log("Could not auto-confirm user, continuing anyway");
-        }
-        
         toast({
           title: "Registration successful",
-          description: "You can now log in with your credentials",
+          description: "Account created successfully",
         });
         return { data: data.user, error: null };
       }
