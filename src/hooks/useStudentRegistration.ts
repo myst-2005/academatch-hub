@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Batch, School } from "@/lib/types";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface StudentFormData {
   name: string;
@@ -21,6 +22,7 @@ interface StudentFormData {
 export const useStudentRegistration = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { signUp, signIn } = useAuth();
   
   const [formData, setFormData] = useState<StudentFormData>({
     name: "",
@@ -89,43 +91,27 @@ export const useStudentRegistration = () => {
     try {
       console.log("Starting registration process");
       
-      // 1. Create the auth user - WITH AUTO CONFIRMATION (no email verification)
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: formData.email,
-        password: formData.password,
-        options: {
-          data: {
-            full_name: formData.name
-          },
-          // Setting emailRedirectTo to null and not requiring email verification
-          emailRedirectTo: null
-        }
-      });
+      // 1. Register the user with auth
+      const { data: userData, error: signUpError } = await signUp(formData.email, formData.password);
       
-      if (authError) {
-        console.error("Auth error:", authError);
-        throw authError;
+      if (signUpError) {
+        throw signUpError;
       }
       
-      if (!authData.user) {
-        console.error("No user data returned");
+      if (!userData) {
         throw new Error("Failed to create user account");
       }
       
-      console.log("User created successfully, user ID:", authData.user.id);
+      console.log("User created successfully");
 
-      // Additional step to auto-confirm the user's email
-      const { error: confirmError } = await supabase.auth.admin.updateUserById(
-        authData.user.id,
-        { email_confirm: true }
-      );
+      // 2. Sign in the user to get a valid session
+      const { error: signInError } = await signIn(formData.email, formData.password);
       
-      if (confirmError) {
-        console.error("Error confirming user email:", confirmError);
-        // Continue anyway, as this is an optional step that may fail if using anon key
+      if (signInError) {
+        throw new Error("Account created but couldn't sign in automatically. Please try logging in manually.");
       }
 
-      // 2. Process user skills
+      // 3. Process user skills
       const skillNames = formData.skills
         .split(',')
         .map(skill => skill.trim())
@@ -133,11 +119,11 @@ export const useStudentRegistration = () => {
       
       console.log("Processing skills:", skillNames);
       
-      // 3. Create student profile with the authenticated user ID
+      // 4. Create student profile
       const { data: studentData, error: studentError } = await supabase
         .from('students')
         .insert({
-          user_id: authData.user.id,
+          user_id: userData.id,
           name: formData.name,
           batch: formData.batch,
           school: formData.school,
@@ -156,7 +142,7 @@ export const useStudentRegistration = () => {
       
       console.log("Student profile created successfully:", studentData);
       
-      // 4. Process and associate skills with the student
+      // 5. Process and associate skills with the student
       for (const skillName of skillNames) {
         console.log("Processing skill:", skillName);
         
@@ -202,17 +188,6 @@ export const useStudentRegistration = () => {
         }
       }
       
-      // Auto-sign in the user after registration
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password
-      });
-      
-      if (signInError) {
-        console.error("Auto sign-in error:", signInError);
-        // Continue anyway, as we'll redirect to login
-      }
-      
       toast({
         title: "Registration successful",
         description: "Your profile has been created and is pending approval. You will now be redirected to the student dashboard.",
@@ -221,7 +196,7 @@ export const useStudentRegistration = () => {
       
       console.log("Registration completed successfully");
       
-      // Redirect to student dashboard instead of login
+      // Redirect to student dashboard
       navigate("/student-dashboard");
       
     } catch (error: any) {
