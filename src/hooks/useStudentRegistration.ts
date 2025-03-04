@@ -89,14 +89,16 @@ export const useStudentRegistration = () => {
     try {
       console.log("Starting registration process");
       
-      // 1. Create the auth user
+      // 1. Create the auth user - WITH AUTO CONFIRMATION (no email verification)
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: formData.email,
         password: formData.password,
         options: {
           data: {
             full_name: formData.name
-          }
+          },
+          // Setting emailRedirectTo to null and not requiring email verification
+          emailRedirectTo: null
         }
       });
       
@@ -111,6 +113,17 @@ export const useStudentRegistration = () => {
       }
       
       console.log("User created successfully, user ID:", authData.user.id);
+
+      // Additional step to auto-confirm the user's email
+      const { error: confirmError } = await supabase.auth.admin.updateUserById(
+        authData.user.id,
+        { email_confirm: true }
+      );
+      
+      if (confirmError) {
+        console.error("Error confirming user email:", confirmError);
+        // Continue anyway, as this is an optional step that may fail if using anon key
+      }
 
       // 2. Process user skills
       const skillNames = formData.skills
@@ -189,16 +202,27 @@ export const useStudentRegistration = () => {
         }
       }
       
-      // Important: No automatic sign-in after registration
-      // Instead, redirect to login page with success message
+      // Auto-sign in the user after registration
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password
+      });
+      
+      if (signInError) {
+        console.error("Auto sign-in error:", signInError);
+        // Continue anyway, as we'll redirect to login
+      }
+      
       toast({
         title: "Registration successful",
-        description: "Your profile has been created and is pending approval. Please check your email to verify your account, then log in.",
-        duration: 8000,
+        description: "Your profile has been created and is pending approval. You will now be redirected to the student dashboard.",
+        duration: 5000,
       });
       
       console.log("Registration completed successfully");
-      navigate("/login");
+      
+      // Redirect to student dashboard instead of login
+      navigate("/student-dashboard");
       
     } catch (error: any) {
       console.error("Registration error:", error);

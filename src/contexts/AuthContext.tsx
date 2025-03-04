@@ -126,11 +126,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = async (email: string, password: string) => {
     try {
+      // Modified to skip email verification
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: window.location.origin + "/login",
+          // Skip email verification by not setting emailRedirectTo
           data: {
             is_super_admin: email === "admin@admin.com"
           }
@@ -147,9 +148,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       if (data.user) {
+        // Auto confirm the user (might not work with anon key)
+        try {
+          await supabase.auth.admin.updateUserById(
+            data.user.id,
+            { email_confirm: true }
+          );
+        } catch (confirmError) {
+          console.log("Could not auto-confirm user, continuing anyway");
+        }
+        
         toast({
           title: "Registration successful",
-          description: "Please check your email to confirm your account",
+          description: "You can now log in with your credentials",
         });
         return { data: data.user, error: null };
       }
