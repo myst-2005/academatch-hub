@@ -22,6 +22,8 @@ serve(async (req) => {
 
     // If admin doesn't exist, create it with the correct email
     if (!adminUser) {
+      console.log("Creating admin user admin@admin.com");
+      
       const { data: user, error } = await supabase.auth.admin.createUser({
         email: "admin@admin.com",
         password: "admin@1234",
@@ -35,8 +37,11 @@ serve(async (req) => {
       });
 
       if (error) {
+        console.error("Failed to create admin user:", error);
         throw error;
       }
+
+      console.log("Admin user created successfully:", user.user.id);
 
       // Insert admin details into admin_login table
       const { error: adminLoginError } = await supabase
@@ -48,8 +53,13 @@ serve(async (req) => {
         });
 
       if (adminLoginError) {
+        console.error("Failed to insert admin login record:", adminLoginError);
         throw adminLoginError;
       }
+      
+      console.log("Admin login record created successfully");
+    } else {
+      console.log("Admin user already exists:", adminUser.id);
     }
 
     return new Response(JSON.stringify({ success: true, message: "Admin setup completed successfully" }), {

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -43,10 +42,13 @@ const Login = () => {
       
       // Admin login (special case) - accepting both "admin" and "admin@admin.com"
       const isAdminLogin = formData.email === "admin" || formData.email === "admin@admin.com";
-      const adminEmail = isAdminLogin ? "admin@admin.com" : formData.email;
+      const adminEmail = "admin@admin.com"; // Always use the full email for admin
       
       // Use the AuthContext signIn method
-      const { error, data } = await signIn(isAdminLogin ? adminEmail : formData.email, formData.password);
+      const { error, data } = await signIn(
+        isAdminLogin ? adminEmail : formData.email, 
+        formData.password
+      );
       
       if (error) {
         console.error("Login error:", error);
@@ -54,9 +56,9 @@ const Login = () => {
         let errorMessage = "Invalid credentials";
         
         // Provide more specific error messages for common errors
-        if (error.message.includes("Invalid login credentials")) {
+        if (error.message && error.message.includes("Invalid login credentials")) {
           errorMessage = "Invalid email or password";
-        } else if (error.message.includes("Email not confirmed")) {
+        } else if (error.message && error.message.includes("Email not confirmed")) {
           errorMessage = "Please verify your email before logging in";
         } else if (error.message) {
           errorMessage = error.message;
@@ -149,7 +151,7 @@ const Login = () => {
                 <Input
                   id="email"
                   name="email"
-                  type="email"
+                  type="text"
                   placeholder="Enter your email"
                   value={formData.email}
                   onChange={handleChange}
