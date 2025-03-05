@@ -22,7 +22,7 @@ serve(async (req) => {
       throw new Error("Missing Gemini API key");
     }
 
-    // Call the Gemini API for NLP analysis
+    // Call the Gemini API for enhanced NLP analysis with prompt engineering
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
@@ -33,7 +33,20 @@ serve(async (req) => {
           {
             parts: [
               {
-                text: `Analyze the following skills and provide insights about their job market demand and compatibility: ${text}`
+                text: `
+                Analyze the following skills for a job candidate and provide a comprehensive assessment:
+                
+                Skills: ${text}
+                
+                Provide analysis in this format:
+                1. Market Demand: Rate each skill on a scale of 1-10 for current market demand
+                2. Skill Compatibility: Identify which skills work well together and why
+                3. Career Potential: Suggest potential career paths based on this skill set
+                4. Skill Gaps: Identify any complementary skills that would make this set stronger
+                5. Industry Relevance: List industries where this skill set is most valuable
+                
+                Keep your analysis specific, data-driven, and actionable. Format it with clear headings and bullet points.
+                `
               }
             ]
           }
