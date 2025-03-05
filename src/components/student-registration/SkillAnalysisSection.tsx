@@ -40,7 +40,7 @@ export const SkillAnalysisSection = ({ skills }: SkillAnalysisSectionProps) => {
       
       toast({
         title: "Analysis Complete",
-        description: "Your skills have been analyzed successfully",
+        description: "Your tech skills have been analyzed successfully",
       });
     } catch (err: any) {
       console.error("Error analyzing skills:", err);
@@ -58,7 +58,7 @@ export const SkillAnalysisSection = ({ skills }: SkillAnalysisSectionProps) => {
   return (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
-        <h3 className="text-lg font-medium">AI Career Analysis</h3>
+        <h3 className="text-lg font-medium">Tech Skills Analysis</h3>
         <Button 
           type="button" 
           variant="outline" 
@@ -72,7 +72,7 @@ export const SkillAnalysisSection = ({ skills }: SkillAnalysisSectionProps) => {
               Analyzing...
             </>
           ) : (
-            "Analyze Career Potential"
+            "Analyze Tech Skills"
           )}
         </Button>
       </div>
@@ -83,7 +83,7 @@ export const SkillAnalysisSection = ({ skills }: SkillAnalysisSectionProps) => {
 
       {analysis && (
         <Card className="p-4 bg-slate-50">
-          <h4 className="font-medium mb-2 text-haca-700">Skills Analysis</h4>
+          <h4 className="font-medium mb-2 text-haca-700">Technical Skills Assessment</h4>
           <div className="text-sm whitespace-pre-line prose prose-sm max-w-none">
             {analysis}
           </div>
