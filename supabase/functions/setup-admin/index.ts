@@ -13,17 +13,17 @@ serve(async (req) => {
     // Run the setup SQL to create admin_login table
     await supabase.rpc('create_admin_login_table');
 
-    // Check if admin user exists
-    const { data: adminUser, error: adminUserError } = await supabase.auth.admin.getUserByEmail("admin@example.com");
+    // Check if admin user exists - UPDATED EMAIL to match what's expected in AuthContext.tsx
+    const { data: adminUser, error: adminUserError } = await supabase.auth.admin.getUserByEmail("admin@admin.com");
 
     if (adminUserError && adminUserError.message !== "User not found") {
       throw adminUserError;
     }
 
-    // If admin doesn't exist, create it
+    // If admin doesn't exist, create it with the correct email
     if (!adminUser) {
       const { data: user, error } = await supabase.auth.admin.createUser({
-        email: "admin@example.com",
+        email: "admin@admin.com",
         password: "admin@1234",
         email_confirm: true,
         user_metadata: {
@@ -43,7 +43,7 @@ serve(async (req) => {
         .from("admin_login")
         .insert({
           username: "admin",
-          email: "admin@example.com",
+          email: "admin@admin.com",
           user_id: user.user.id
         });
 
