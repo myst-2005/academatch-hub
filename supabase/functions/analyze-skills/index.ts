@@ -17,12 +17,14 @@ serve(async (req) => {
 
   try {
     const { text } = await req.json();
+    console.log("Analyzing skills:", text);
 
     if (!GEMINI_API_KEY) {
+      console.error("Missing Gemini API key");
       throw new Error("Missing Gemini API key");
     }
 
-    // Call the Gemini API for enhanced NLP analysis with prompt engineering
+    // Call the Gemini API for enhanced NLP analysis with advanced prompt engineering
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: {
@@ -34,18 +36,41 @@ serve(async (req) => {
             parts: [
               {
                 text: `
+                You are an expert career counselor and technical skills analyst for the tech industry.
+                
                 Analyze the following skills for a job candidate and provide a comprehensive assessment:
                 
                 Skills: ${text}
                 
-                Provide analysis in this format:
-                1. Market Demand: Rate each skill on a scale of 1-10 for current market demand
-                2. Skill Compatibility: Identify which skills work well together and why
-                3. Career Potential: Suggest potential career paths based on this skill set
-                4. Skill Gaps: Identify any complementary skills that would make this set stronger
-                5. Industry Relevance: List industries where this skill set is most valuable
+                Provide a detailed analysis with these exact sections:
                 
-                Keep your analysis specific, data-driven, and actionable. Format it with clear headings and bullet points.
+                ## Market Demand
+                - Rate each skill on a scale of 1-10 for current market demand
+                - Include specific data points on job availability where possible
+                - Mention growth trends for each skill
+                
+                ## Skill Compatibility
+                - Identify which skills complement each other and create valuable combinations
+                - Suggest modern tech stacks that incorporate these skills
+                
+                ## Career Potential
+                - List 3-5 specific job roles these skills qualify for
+                - Include salary ranges where applicable
+                - Mention career progression opportunities
+                
+                ## Skill Gaps
+                - Identify 3-5 complementary skills that would enhance this skill set
+                - Explain why each would be valuable to add
+                
+                ## Industry Relevance
+                - List specific industries where this skill set is most valuable
+                - Name 2-3 companies that frequently hire for these skills
+                
+                ## Learning Resources
+                - Suggest specific courses, certifications or projects to improve these skills
+                
+                Format your response with clear Markdown headings and bullet points.
+                Be specific, data-driven, and actionable. Focus on current market trends in 2024.
                 `
               }
             ]
@@ -55,16 +80,19 @@ serve(async (req) => {
           temperature: 0.2,
           topK: 40,
           topP: 0.95,
-          maxOutputTokens: 1024,
+          maxOutputTokens: 1500,
         }
       }),
     });
 
     const data = await response.json();
+    console.log("Gemini API response received");
     
     // Extract the generated text from Gemini's response
     const analysis = data.candidates?.[0]?.content?.parts?.[0]?.text || 
                     "Unable to analyze skills. Please try again later.";
+
+    console.log("Analysis complete. Length:", analysis.length);
 
     return new Response(
       JSON.stringify({ analysis }),
