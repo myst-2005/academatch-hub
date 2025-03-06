@@ -18,17 +18,29 @@ const AdminDashboard = () => {
   
   // Load students data
   useEffect(() => {
+    console.log("Loading students data...");
     loadStudents();
   }, []);
   
   const loadStudents = () => {
     const allStudents = getStudents();
-    setPendingStudents(allStudents.filter(s => s.status === ApprovalStatus.Pending));
-    setApprovedStudents(allStudents.filter(s => s.status === ApprovalStatus.Approved));
-    setRejectedStudents(allStudents.filter(s => s.status === ApprovalStatus.Rejected));
+    console.log("All students:", allStudents);
+    
+    const pending = allStudents.filter(s => s.status === ApprovalStatus.Pending);
+    const approved = allStudents.filter(s => s.status === ApprovalStatus.Approved);
+    const rejected = allStudents.filter(s => s.status === ApprovalStatus.Rejected);
+    
+    console.log("Pending students:", pending);
+    console.log("Approved students:", approved);
+    console.log("Rejected students:", rejected);
+    
+    setPendingStudents(pending);
+    setApprovedStudents(approved);
+    setRejectedStudents(rejected);
   };
   
   const handleApprove = (id: string) => {
+    console.log("Approving student with ID:", id);
     const { updateStudentStatus } = require('@/lib/mockData');
     updateStudentStatus(id, ApprovalStatus.Approved);
     toast({
@@ -40,6 +52,7 @@ const AdminDashboard = () => {
   };
   
   const handleReject = (id: string) => {
+    console.log("Rejecting student with ID:", id);
     const { updateStudentStatus } = require('@/lib/mockData');
     updateStudentStatus(id, ApprovalStatus.Rejected);
     toast({
