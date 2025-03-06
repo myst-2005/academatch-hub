@@ -25,14 +25,26 @@ const AdminDashboard = () => {
     setIsLoading(true);
     
     try {
+      console.log("Fetching students from Supabase...");
+      
       // Fetch all students
       const { data: studentsData, error: studentsError } = await supabase
         .from('students')
         .select('*')
         .order('created_at', { ascending: false });
       
-      if (studentsError) throw studentsError;
+      if (studentsError) {
+        console.error("Error fetching students:", studentsError);
+        throw studentsError;
+      }
+      
       console.log("Fetched students data:", studentsData);
+      
+      if (!studentsData || studentsData.length === 0) {
+        console.log("No students found in the database");
+        setIsLoading(false);
+        return;
+      }
       
       // For each student, fetch their skills
       const studentsWithSkills = await Promise.all(
@@ -77,9 +89,9 @@ const AdminDashboard = () => {
       const approved = studentsWithSkills.filter(s => s.status === ApprovalStatus.Approved);
       const rejected = studentsWithSkills.filter(s => s.status === ApprovalStatus.Rejected);
       
-      console.log("Pending students:", pending);
-      console.log("Approved students:", approved);
-      console.log("Rejected students:", rejected);
+      console.log("Pending students:", pending.length);
+      console.log("Approved students:", approved.length);
+      console.log("Rejected students:", rejected.length);
       
       setPendingStudents(pending);
       setApprovedStudents(approved);
