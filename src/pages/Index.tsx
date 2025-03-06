@@ -39,7 +39,7 @@ const Index = () => {
                 </Link>
                 <Link to="/login">
                   <Button variant="ghost" className="w-full sm:w-auto text-gray-600 hover:text-haca-700 hover:bg-haca-50 font-medium px-8 py-6 h-auto text-base rounded-xl transition-all">
-                    Admin Login
+                    Student Login
                   </Button>
                 </Link>
               </div>

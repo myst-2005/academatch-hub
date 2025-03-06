@@ -1,11 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
 import { 
-  getCurrentUser, 
-  getPendingStudents, 
-  updateStudentStatus, 
-  getApprovedStudents, 
   getStudents 
 } from "@/lib/mockData";
 import { ApprovalStatus, Student } from "@/lib/types";
@@ -15,26 +10,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 
 const AdminDashboard = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [pendingStudents, setPendingStudents] = useState<Student[]>([]);
   const [approvedStudents, setApprovedStudents] = useState<Student[]>([]);
   const [rejectedStudents, setRejectedStudents] = useState<Student[]>([]);
   const [activeTab, setActiveTab] = useState("pending");
-  
-  // Check if user is logged in and is admin
-  useEffect(() => {
-    const user = getCurrentUser();
-    if (!user || !user.isAdmin) {
-      toast({
-        title: "Access denied",
-        description: "You must be logged in as an admin to view this page",
-        variant: "destructive",
-        duration: 3000,
-      });
-      navigate("/login");
-    }
-  }, [navigate, toast]);
   
   // Load students data
   useEffect(() => {
@@ -49,6 +29,7 @@ const AdminDashboard = () => {
   };
   
   const handleApprove = (id: string) => {
+    const { updateStudentStatus } = require('@/lib/mockData');
     updateStudentStatus(id, ApprovalStatus.Approved);
     toast({
       title: "Student approved",
@@ -59,6 +40,7 @@ const AdminDashboard = () => {
   };
   
   const handleReject = (id: string) => {
+    const { updateStudentStatus } = require('@/lib/mockData');
     updateStudentStatus(id, ApprovalStatus.Rejected);
     toast({
       title: "Student rejected",

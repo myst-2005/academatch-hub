@@ -72,6 +72,15 @@ const Navbar = () => {
             Student Registration
           </Link>
           
+          <Link 
+            to="/adminsecret" 
+            className={`text-sm font-medium transition-colors hover:text-haca-600 ${
+              location.pathname === "/adminsecret" ? "text-haca-600" : "text-gray-600"
+            }`}
+          >
+            Admin Dashboard
+          </Link>
+          
           {user && !isAdmin && (
             <Link 
               to="/student-dashboard" 
@@ -80,17 +89,6 @@ const Navbar = () => {
               }`}
             >
               Student Dashboard
-            </Link>
-          )}
-          
-          {isAdmin && (
-            <Link 
-              to="/admin" 
-              className={`text-sm font-medium transition-colors hover:text-haca-600 ${
-                location.pathname === "/admin" ? "text-haca-600" : "text-gray-600"
-              }`}
-            >
-              Admin Dashboard
             </Link>
           )}
           
@@ -157,6 +155,15 @@ const Navbar = () => {
               Student Registration
             </Link>
             
+            <Link 
+              to="/adminsecret" 
+              className={`text-sm font-medium transition-colors hover:text-haca-600 ${
+                location.pathname === "/adminsecret" ? "text-haca-600" : "text-gray-600"
+              }`}
+            >
+              Admin Dashboard
+            </Link>
+            
             {user && !isAdmin && (
               <Link 
                 to="/student-dashboard" 
@@ -165,17 +172,6 @@ const Navbar = () => {
                 }`}
               >
                 Student Dashboard
-              </Link>
-            )}
-            
-            {isAdmin && (
-              <Link 
-                to="/admin" 
-                className={`text-sm font-medium transition-colors hover:text-haca-600 ${
-                  location.pathname === "/admin" ? "text-haca-600" : "text-gray-600"
-                }`}
-              >
-                Admin Dashboard
               </Link>
             )}
             
