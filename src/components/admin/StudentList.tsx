@@ -18,7 +18,7 @@ const StudentList: React.FC<StudentListProps> = ({
   onReject,
   emptyMessage
 }) => {
-  if (students.length === 0) {
+  if (!students || students.length === 0) {
     return (
       <div className="text-center py-10 text-gray-500">
         {emptyMessage}

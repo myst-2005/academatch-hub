@@ -6,6 +6,8 @@ import { useStudentData } from "@/hooks/useStudentData";
 import AdminStats from "@/components/admin/AdminStats";
 import StudentList from "@/components/admin/StudentList";
 import LoadingIndicator from "@/components/admin/LoadingIndicator";
+import { Button } from "@/components/ui/button";
+import { RefreshCw, AlertTriangle } from "lucide-react";
 
 const AdminDashboard = () => {
   const {
@@ -13,11 +15,17 @@ const AdminDashboard = () => {
     approvedStudents,
     rejectedStudents,
     isLoading,
+    error,
+    loadStudents,
     handleApprove,
     handleReject
   } = useStudentData();
   
   const [activeTab, setActiveTab] = useState("pending");
+  
+  const handleRefresh = () => {
+    loadStudents();
+  };
   
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -31,11 +39,24 @@ const AdminDashboard = () => {
               <p className="text-gray-600 animate-fade-in">Manage student approvals and view all registered students</p>
             </div>
             
-            <AdminStats 
-              approvedCount={approvedStudents.length}
-              pendingCount={pendingStudents.length}
-              rejectedCount={rejectedStudents.length}
-            />
+            <div className="flex items-center space-x-4">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="flex items-center gap-2" 
+                onClick={handleRefresh}
+                disabled={isLoading}
+              >
+                <RefreshCw size={16} className={isLoading ? "animate-spin" : ""} />
+                Refresh
+              </Button>
+              
+              <AdminStats 
+                approvedCount={approvedStudents.length}
+                pendingCount={pendingStudents.length}
+                rejectedCount={rejectedStudents.length}
+              />
+            </div>
           </div>
           
           <div className="bg-white rounded-xl shadow-elegant border border-gray-100 animate-fade-up">
@@ -57,6 +78,13 @@ const AdminDashboard = () => {
               <div className="p-4 sm:p-6">
                 {isLoading ? (
                   <LoadingIndicator />
+                ) : error ? (
+                  <div className="flex flex-col items-center justify-center py-8 px-4 text-center">
+                    <AlertTriangle size={48} className="text-red-500 mb-4" />
+                    <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Data</h3>
+                    <p className="text-gray-500 mb-4">{error}</p>
+                    <Button onClick={handleRefresh}>Try Again</Button>
+                  </div>
                 ) : (
                   <>
                     <TabsContent value="pending" className="mt-0">

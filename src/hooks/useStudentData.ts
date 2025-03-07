@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from "react";
 import { ApprovalStatus, Student } from "@/lib/types";
-import { useToast } from "@/components/ui/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
 export const useStudentData = () => {
@@ -10,12 +10,14 @@ export const useStudentData = () => {
   const [approvedStudents, setApprovedStudents] = useState<Student[]>([]);
   const [rejectedStudents, setRejectedStudents] = useState<Student[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   
   const loadStudents = async () => {
     setIsLoading(true);
+    setError(null);
     
     try {
-      console.log("Fetching students from Supabase...");
+      console.log("Starting to fetch students from Supabase...");
       
       // Fetch all students
       const { data: studentsData, error: studentsError } = await supabase
@@ -25,13 +27,17 @@ export const useStudentData = () => {
       
       if (studentsError) {
         console.error("Error fetching students:", studentsError);
+        setError(studentsError.message);
         throw studentsError;
       }
       
-      console.log("Fetched students data:", studentsData);
+      console.log("Raw students data:", studentsData);
       
       if (!studentsData || studentsData.length === 0) {
         console.log("No students found in the database");
+        setPendingStudents([]);
+        setApprovedStudents([]);
+        setRejectedStudents([]);
         setIsLoading(false);
         return;
       }
@@ -39,6 +45,8 @@ export const useStudentData = () => {
       // For each student, fetch their skills
       const studentsWithSkills = await Promise.all(
         studentsData.map(async (student: any) => {
+          console.log("Processing student:", student.id, student.name);
+          
           // Get skills for this student
           const { data: skillsData, error: skillsError } = await supabase
             .from('student_skills')
@@ -56,6 +64,8 @@ export const useStudentData = () => {
             };
           }
           
+          console.log("Skills for student", student.id, ":", skillsData);
+          
           // Format the student with their skills
           return {
             id: student.id,
@@ -72,7 +82,7 @@ export const useStudentData = () => {
         })
       );
       
-      console.log("Students with skills:", studentsWithSkills);
+      console.log("Processed students with skills:", studentsWithSkills);
       
       // Filter students based on status
       const pending = studentsWithSkills.filter(s => s.status === ApprovalStatus.Pending);
@@ -88,11 +98,12 @@ export const useStudentData = () => {
       setRejectedStudents(rejected);
     } catch (error) {
       console.error("Error loading students:", error);
+      setError(error.message || "Failed to load students data");
       toast({
         title: "Error loading students",
         description: error.message || "Failed to load students data",
         variant: "destructive",
-        duration: 3000,
+        duration: 5000,
       });
     } finally {
       setIsLoading(false);
@@ -166,6 +177,7 @@ export const useStudentData = () => {
     approvedStudents,
     rejectedStudents,
     isLoading,
+    error,
     loadStudents,
     handleApprove,
     handleReject

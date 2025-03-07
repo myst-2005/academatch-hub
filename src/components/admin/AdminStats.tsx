@@ -12,6 +12,8 @@ const AdminStats: React.FC<AdminStatsProps> = ({
   pendingCount,
   rejectedCount
 }) => {
+  const totalStudents = approvedCount + pendingCount + rejectedCount;
+  
   return (
     <div className="flex items-center space-x-3 animate-fade-in">
       <div className="text-sm py-1 px-3 rounded-full bg-green-100 text-green-800">
@@ -22,6 +24,9 @@ const AdminStats: React.FC<AdminStatsProps> = ({
       </div>
       <div className="text-sm py-1 px-3 rounded-full bg-red-100 text-red-800">
         {rejectedCount} Rejected
+      </div>
+      <div className="text-sm py-1 px-3 rounded-full bg-gray-100 text-gray-800">
+        {totalStudents} Total
       </div>
     </div>
   );
