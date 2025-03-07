@@ -44,7 +44,7 @@ serve(async (req) => {
                 
                 Analyze these specific technical skills for a job candidate in the technology sector:
                 
-                Skills: ${skills.join(', ')}
+                Skills: ${text}
                 
                 Provide a concise, accurate analysis with these exact sections:
                 
