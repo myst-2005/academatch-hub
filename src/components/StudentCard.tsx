@@ -48,7 +48,7 @@ const StudentCard = ({
           
           <div>
             <h4 className="text-sm font-medium text-gray-600 mb-2">Skills</h4>
-            <div className="flex flex-wrap">
+            <div className="flex flex-wrap gap-2">
               {student.skills.map(skill => (
                 <span key={skill.id} className="chip">{skill.name}</span>
               ))}

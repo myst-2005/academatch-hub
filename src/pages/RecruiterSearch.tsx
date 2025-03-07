@@ -193,13 +193,13 @@ const RecruiterSearch = () => {
             </p>
           </div>
           
-          <div className="mb-8 max-w-4xl mx-auto animate-fade-up">
+          <div className="mb-10 max-w-4xl mx-auto animate-fade-up">
             <SearchBar 
               onSearch={handleSearch}
               placeholder="e.g., 'I need a C4 coding student who knows AWS and Flutter'"
             />
             
-            <div className="flex flex-wrap items-center mt-4">
+            <div className="flex flex-wrap items-center mt-6 gap-3">
               <span className="text-sm text-gray-500 mr-2">Try:</span>
               <button 
                 onClick={() => handleSearch("C4 coding student with React experience")}
@@ -224,7 +224,7 @@ const RecruiterSearch = () => {
           
           <div className="animate-fade-up" style={{ animationDelay: "0.2s" }}>
             {searchQuery && (
-              <div className="flex justify-between items-center mb-4">
+              <div className="flex justify-between items-center mb-6">
                 <h2 className="text-lg font-medium text-gray-800">
                   {isSearching ? "Searching..." : `Search Results for "${searchQuery}"`}
                 </h2>
