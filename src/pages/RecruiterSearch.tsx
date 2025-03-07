@@ -1,6 +1,4 @@
-
 import { useState, useEffect } from "react";
-import { searchStudents, getApprovedStudents } from "@/lib/mockData";
 import { Student } from "@/lib/types";
 import Navbar from "@/components/Navbar";
 import SearchBar from "@/components/SearchBar";
@@ -19,22 +17,134 @@ const RecruiterSearch = () => {
   const { toast } = useToast();
   
   useEffect(() => {
-    // Initial load of all approved students
-    const approved = getApprovedStudents();
-    setAllStudents(approved);
-    setSearchResults(approved);
+    // Load approved students from Supabase
+    fetchApprovedStudents();
   }, []);
+  
+  const fetchApprovedStudents = async () => {
+    setIsSearching(true);
+    
+    try {
+      console.log("Fetching approved students from Supabase...");
+      
+      const { data: studentsData, error: studentsError } = await supabase
+        .from('students')
+        .select('*')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false });
+      
+      if (studentsError) {
+        console.error("Error fetching students:", studentsError);
+        toast({
+          title: "Error loading students",
+          description: studentsError.message,
+          variant: "destructive"
+        });
+        throw studentsError;
+      }
+      
+      if (!studentsData || studentsData.length === 0) {
+        console.log("No approved students found");
+        setAllStudents([]);
+        setSearchResults([]);
+        setIsSearching(false);
+        return;
+      }
+      
+      // For each student, fetch their skills
+      const studentsWithSkills = await Promise.all(
+        studentsData.map(async (student: any) => {
+          // Get skills for this student
+          const { data: skillsData, error: skillsError } = await supabase
+            .from('student_skills')
+            .select(`
+              skill_id,
+              skills:skills(id, name)
+            `)
+            .eq('student_id', student.id);
+          
+          if (skillsError) {
+            console.error("Error fetching skills for student:", student.id, skillsError);
+            return {
+              ...student,
+              skills: []
+            };
+          }
+          
+          // Format the student with their skills
+          return {
+            id: student.id,
+            name: student.name,
+            batch: student.batch,
+            school: student.school,
+            yearsOfExperience: student.years_of_experience,
+            linkedinUrl: student.linkedin_url,
+            resumeUrl: student.resume_url,
+            status: student.status,
+            createdAt: new Date(student.created_at),
+            skills: skillsData ? skillsData.map((item: any) => item.skills) : []
+          };
+        })
+      );
+      
+      console.log("Fetched approved students with skills:", studentsWithSkills);
+      setAllStudents(studentsWithSkills);
+      setSearchResults(studentsWithSkills);
+    } catch (error) {
+      console.error("Error in fetchApprovedStudents:", error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
   
   const handleSearch = async (query: string) => {
     setSearchQuery(query);
     setIsSearching(true);
     
     try {
-      // First, do a standard search to find matching students
-      const results = searchStudents(query);
-      setSearchResults(results);
+      if (!query.trim()) {
+        // If empty query, show all approved students
+        setSearchResults(allStudents);
+        setAnalysisResult(null);
+        return;
+      }
       
-      // Then, if there's a query, analyze the skills using Gemini API
+      console.log("Searching for students matching:", query);
+      
+      // Prepare query terms for flexible searching
+      const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 1);
+      
+      // Filter students based on search terms
+      const filteredStudents = allStudents.filter(student => {
+        // Search in name
+        if (student.name.toLowerCase().includes(query.toLowerCase())) return true;
+        
+        // Search in school
+        if (student.school.toLowerCase().includes(query.toLowerCase())) return true;
+        
+        // Search in batch
+        if (student.batch.toLowerCase().includes(query.toLowerCase())) return true;
+        
+        // Search in skills
+        if (student.skills.some(skill => 
+          skill.name.toLowerCase().includes(query.toLowerCase())
+        )) return true;
+        
+        // Check if multiple terms match different attributes
+        const matchesTerms = searchTerms.some(term => {
+          return student.name.toLowerCase().includes(term) || 
+                 student.school.toLowerCase().includes(term) || 
+                 student.batch.toLowerCase().includes(term) || 
+                 student.skills.some(skill => skill.name.toLowerCase().includes(term));
+        });
+        
+        return matchesTerms;
+      });
+      
+      console.log("Search results:", filteredStudents.length, "students found");
+      setSearchResults(filteredStudents);
+      
+      // Then, analyze the skills using Gemini API
       if (query.trim()) {
         setIsAnalyzing(true);
         setAnalysisResult(null);
